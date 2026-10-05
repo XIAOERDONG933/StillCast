@@ -17,8 +17,12 @@ object WindowPlanner {
         settings: RecordingSettings,
         now: Instant,
     ): WindowAnalysis {
-        val localHour = now.atZone(forecast.zone).truncatedTo(ChronoUnit.HOURS).toInstant()
-        val firstStart = if (localHour < now) localHour.plusSeconds(HOUR_SECONDS) else localHour
+        // Use the forecast's hourly grid: a half-hour DST change can put samples at :30
+        // local time. Rounding the wall clock would then invent unavailable :00 samples.
+        val anchor = forecast.points.minOfOrNull(ForecastPoint::time)
+            ?: now.atZone(forecast.zone).truncatedTo(ChronoUnit.HOURS).toInstant()
+        val candidate = anchor.plusSeconds(Duration.between(anchor, now).toHours() * HOUR_SECONDS)
+        val firstStart = if (candidate < now) candidate.plusSeconds(HOUR_SECONDS) else candidate
         val horizon = now.plus(Duration.ofHours(24))
         // Ambiguous duplicate records are treated as unavailable instead of silently choosing one.
         val pointsByTime = forecast.points.groupBy(ForecastPoint::time)
@@ -41,11 +45,8 @@ object WindowPlanner {
             }
             .toList()
 
-        val windows = hours.windowed(settings.sessionHours)
-            .filter { session ->
-                session.all { matches(it, settings) } &&
-                    session.zipWithNext().all { (left, right) -> left.end == right.start }
-            }
+        val sessions = hours.windowed(settings.sessionHours)
+        val windows = sessions.filter { session -> session.all { matches(it, settings) } }
             .map { session ->
                 RecordingWindow(
                     start = session.first().start,
@@ -57,7 +58,11 @@ object WindowPlanner {
                     },
                 )
             }
-        return WindowAnalysis(hours, windows)
+        return WindowAnalysis(
+            hours = hours,
+            windows = windows,
+            hasCompleteSession = sessions.any { session -> session.all(RecordingHour::complete) },
+        )
     }
 
     fun matches(hour: RecordingHour, settings: RecordingSettings): Boolean =

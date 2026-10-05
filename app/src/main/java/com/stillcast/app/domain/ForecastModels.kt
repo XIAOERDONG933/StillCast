@@ -91,6 +91,8 @@ data class RecordingWindow(
 data class WindowAnalysis(
     val hours: List<RecordingHour>,
     val windows: List<RecordingWindow>,
+    /** Whether any contiguous session has enough data, regardless of the selected limits. */
+    val hasCompleteSession: Boolean,
 ) {
     val next: RecordingWindow? get() = windows.firstOrNull()
     val completeHourCount: Int get() = hours.count(RecordingHour::complete)

@@ -216,6 +216,54 @@ class WindowPlannerTest {
         assertTrue(result.hours.all { !it.complete })
     }
 
+    @Test
+    fun `separate complete hours do not establish an available multi hour session`() {
+        val samples = points(5).mapIndexed { index, point ->
+            if (index == 2) point.copy(windMs = null) else point
+        }
+        val result = analyze(samples)
+        assertEquals(2, result.completeHourCount)
+        assertFalse(result.hasCompleteSession)
+        assertNull(result.next)
+    }
+
+    @Test
+    fun `complete but unsuitable session is distinguishable from unavailable data`() {
+        val result = analyze(points(3, wind = 8.0))
+        assertTrue(result.hasCompleteSession)
+        assertNull(result.next)
+    }
+
+    @Test
+    fun `half hour DST change preserves the actual forecast grid after recalculation`() {
+        // Lord Howe's 2026 spring transition changes local samples from 01:00 to 02:30.
+        // An already fetched hourly series then continues at 03:30, 04:30, and so on.
+        val start = Instant.parse("2026-10-03T13:30:00Z") // Oct 4, 00:00 +10:30.
+        val now = Instant.parse("2026-10-03T16:15:00Z") // Oct 4, 03:15 +11:00.
+        val samples = points(30, start = start)
+        val result = analyze(samples, now = now, zone = "Australia/Lord_Howe")
+        val expected = Instant.parse("2026-10-03T16:30:00Z")
+        assertEquals(expected, result.next?.start)
+        assertEquals(30, result.next!!.start.atZone(ZoneId.of("Australia/Lord_Howe")).minute)
+        assertEquals(23, result.completeHourCount)
+        assertTrue(result.windows.all { it.start >= now && it.end <= now.plus(Duration.ofHours(24)) })
+        // A complete boundary is eligible immediately; one nanosecond after it skips that slot.
+        assertEquals(expected, analyze(samples, expected, "Australia/Lord_Howe").next?.start)
+        assertEquals(
+            expected.plusSeconds(3_600),
+            analyze(samples, expected.plusNanos(1), "Australia/Lord_Howe").next?.start,
+        )
+    }
+
+    @Test
+    fun `missing next boundary remains visible instead of skipping to the next available sample`() {
+        val samples = points(7).filterIndexed { index, _ -> index != 1 }
+        val result = analyze(samples, now = base.plusSeconds(1_800))
+        assertEquals(base.plusSeconds(3_600), result.hours.first().start)
+        assertFalse(result.hours.first().complete)
+        assertEquals(base.plusSeconds(7_200), result.next?.start)
+    }
+
     private fun analyze(
         samples: List<ForecastPoint>,
         now: Instant = base,
