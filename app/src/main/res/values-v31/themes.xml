@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.StillCast" parent="Base.Theme.StillCast">
+        <item name="android:windowSplashScreenBackground">#F7F7F0</item>
+    </style>
+</resources>
