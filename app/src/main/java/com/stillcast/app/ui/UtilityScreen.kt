@@ -60,17 +60,41 @@ fun UtilityScreen(
     var showAllHours by rememberSaveable(state.settings.place.id) { mutableStateOf(false) }
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
-            modifier = Modifier.widthIn(max = 680.dp).fillMaxSize().testTag("fieldList"),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp),
+            modifier = Modifier
+                .widthIn(max = 680.dp)
+                .fillMaxSize()
+                .testTag("fieldList"),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = 24.dp,
+                end = 24.dp,
+                top = 8.dp,
+                bottom = 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(Icons.Rounded.Place, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Place,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Column(Modifier.weight(1f)) {
-                        Text(state.settings.place.name, style = MaterialTheme.typography.titleMedium)
-                        Text(listOf(state.settings.place.region, state.settings.place.country).filter { it.isNotBlank() }.distinct().joinToString(", "),
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            state.settings.place.name,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            listOf(
+                                state.settings.place.region,
+                                state.settings.place.country
+                            ).filter { it.isNotBlank() }.distinct().joinToString(", "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     TextButton(onClick = onSettings) { Text("Change") }
                 }
@@ -82,21 +106,38 @@ fun UtilityScreen(
                 )
             }
             if (state.stale && !state.expired && state.error == null) item {
-                Notice("This forecast was retrieved over an hour ago. Refresh before making plans.",
-                    if (!state.loading) "Refresh" else null, onRefresh)
+                Notice(
+                    "This forecast was retrieved over an hour ago. Refresh before making plans.",
+                    if (!state.loading) "Refresh" else null, onRefresh
+                )
             }
             item { WindowCard(state, onSettings, onRefresh) }
             item {
-                Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(18.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Column(Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text("Your limits", style = MaterialTheme.typography.titleMedium)
                             TextButton(onClick = onSettings) { Text("Adjust") }
                         }
-                        Text("Wind ≤ ${decimal(state.settings.maxWindMs)} m/s  ·  Gust ≤ ${decimal(state.settings.maxGustMs)} m/s",
-                            style = MaterialTheme.typography.bodyMedium)
-                        Text("Precipitation ≤ ${state.settings.maxPrecipitationProbability}%  ·  ${state.settings.sessionHours} hour session",
-                            style = MaterialTheme.typography.bodyMedium)
+                        val windLimit = decimal(state.settings.maxWindMs)
+                        val gustLimit = decimal(state.settings.maxGustMs)
+                        Text(
+                            "Wind ≤ $windLimit m/s  ·  Gust ≤ $gustLimit m/s",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            "Precipitation ≤ ${state.settings.maxPrecipitationProbability}%  ·  ${state.settings.sessionHours}-hour session",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                         Spacer(Modifier.height(6.dp))
                     }
                 }
@@ -107,42 +148,77 @@ fun UtilityScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text("The next 24 hours", style = MaterialTheme.typography.headlineMedium)
-                        Text("From the next complete forecast hour · ${forecast.zone.id.replace('_', ' ')}",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("✓ Within limits   – Above limits   ? Missing data",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val zoneLabel = forecast.zone.id.replace('_', ' ')
+                        Text(
+                            "From the next complete forecast hour · $zoneLabel",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "✓ Within limits   – Above limits   ? Missing data",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
                 item {
                     Row(Modifier.fillMaxWidth()) {
-                        Text("HOUR", Modifier.weight(1.4f), style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            "HOUR",
+                            Modifier.weight(1.4f),
+                            style = MaterialTheme.typography.labelSmall
+                        )
                         listOf("WIND", "GUST", "CHANCE").forEach {
-                            Text(it, Modifier.weight(1f), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                it,
+                                Modifier.weight(1f),
+                                textAlign = TextAlign.End,
+                                style = MaterialTheme.typography.labelSmall
+                            )
                         }
                     }
                 }
-                items(if (showAllHours) analysis.hours else analysis.hours.take(6), key = { it.start.epochSecond }) { hour ->
+                items(
+                    if (showAllHours) analysis.hours else analysis.hours.take(6),
+                    key = { it.start.epochSecond }) { hour ->
                     HourRow(hour, state.settings, forecast.zone)
                 }
                 if (analysis.hours.size > 6) item {
-                    TextButton(onClick = { showAllHours = !showAllHours }, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(
+                        onClick = { showAllHours = !showAllHours },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(if (showAllHours) "Show fewer hours" else "Show all ${analysis.hours.size} hours")
                     }
                 }
                 item {
-                    Text("Wind and gusts in m/s. Chance is the precipitation probability for each hour. ${analysis.completeHourCount}/${analysis.hours.size} hours have complete data.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Retrieved ${DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.UK).withZone(forecast.zone).format(forecast.fetchedAt)} · Times local to selected place",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp))
+                    Text(
+                        "Wind/gust: m/s · Chance: hourly precipitation probability. ${analysis.completeHourCount}/${analysis.hours.size} hours have complete data.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "Retrieved ${
+                            DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.UK)
+                                .withZone(forecast.zone).format(forecast.fetchedAt)
+                        } · Times local to selected place",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
             item {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Text("Plan the weather. Listen to the place.", style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 18.dp, bottom = 6.dp))
-                Text("Local shelter, traffic and microphone protection still matter. StillCast does not measure sound levels.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "Before you record", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 18.dp, bottom = 6.dp)
+                )
+                Text(
+                    "Check local noise and wind shelter before recording.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 WebLink("Weather data: Open-Meteo ↗", "https://open-meteo.com/")
             }
         }
@@ -153,65 +229,142 @@ fun UtilityScreen(
 private fun WindowCard(state: StillCastUiState, onSettings: () -> Unit, onRefresh: () -> Unit) {
     val window = state.analysis?.next
     val zone = state.forecast?.zone
-    Surface(color = Forest, contentColor = Color.White, shape = RoundedCornerShape(26.dp),
-        modifier = Modifier.fillMaxWidth().testTag("windowCard")) {
+    Surface(
+        color = Forest, contentColor = Color.White, shape = RoundedCornerShape(26.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("windowCard")
+    ) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("YOUR NEXT RECORDING WINDOW", style = MaterialTheme.typography.labelSmall, color = Lime,
-                    modifier = Modifier.weight(1f))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "YOUR NEXT RECORDING WINDOW",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Lime,
+                    modifier = Modifier.weight(1f)
+                )
                 Icon(Icons.Rounded.GraphicEq, contentDescription = null, tint = Lime)
             }
             when {
                 state.forecast == null && state.loading -> {
-                    Text("Checking the\nfield conditions…", style = MaterialTheme.typography.headlineMedium)
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Lime,
-                        trackColor = Color.White.copy(alpha = 0.15f))
-                    Text("Looking for ${state.settings.sessionHours} consecutive hours within your limits.",
-                        style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD6E2D9))
+                    Text(
+                        "Checking the\nfield conditions…",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(), color = Lime,
+                        trackColor = Color.White.copy(alpha = 0.15f)
+                    )
+                    Text(
+                        "Looking for a ${state.settings.sessionHours}-hour session within your limits.",
+                        style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD6E2D9)
+                    )
                 }
+
                 state.forecast == null -> {
-                    Text("Let’s check\nthe conditions.", style = MaterialTheme.typography.headlineMedium)
-                    Text("A live forecast is needed to find your next window.", style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFFD6E2D9))
+                    Text(
+                        "Let’s check\nthe conditions.",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        "A live forecast is needed to find your next window.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFD6E2D9)
+                    )
                     HeroButton("Load forecast", onRefresh)
                 }
+
                 state.expired -> {
-                    Text("Time for a\nfresh forecast.", style = MaterialTheme.typography.headlineMedium)
-                    Text("The saved forecast is over three hours old. Refresh to see a new recommendation.",
-                        style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD6E2D9))
+                    Text(
+                        "Time for a\nfresh forecast.",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        "The saved forecast is over three hours old. Refresh to see a new recommendation.",
+                        style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD6E2D9)
+                    )
                     if (!state.loading) HeroButton("Refresh forecast", onRefresh)
                 }
+
                 window != null && zone != null -> {
-                    Text("${dayLabel(window.start, state.now, zone)} · ${state.settings.sessionHours} hour session",
-                        style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD6E2D9))
-                    Text("${clockTime(window.start, zone)} – ${clockTime(window.end, zone)}",
+                    val startDay = dayLabel(window.start, state.now, zone)
+                    Text(
+                        "$startDay · ${state.settings.sessionHours}-hour session",
+                        style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD6E2D9)
+                    )
+                    Text(
+                        "${clockTime(window.start, zone)} – ${clockTime(window.end, zone)}",
                         style = MaterialTheme.typography.headlineLarge, fontSize = 32.sp,
-                        modifier = Modifier.testTag("windowTime"))
-                    if (window.start.atZone(zone).toLocalDate() != window.end.atZone(zone).toLocalDate()) {
-                        Text("Ends ${dayLabel(window.end, state.now, zone).lowercase(Locale.UK)}",
-                            style = MaterialTheme.typography.bodySmall, color = Color(0xFFD6E2D9))
+                        modifier = Modifier.testTag("windowTime")
+                    )
+                    if (window.start.atZone(zone).toLocalDate() != window.end.atZone(zone)
+                            .toLocalDate()
+                    ) {
+                        Text(
+                            "Ends ${dayLabel(window.end, state.now, zone).lowercase(Locale.UK)}",
+                            style = MaterialTheme.typography.bodySmall, color = Color(0xFFD6E2D9)
+                        )
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
                         Icon(Icons.Rounded.Check, contentDescription = null, tint = Lime)
-                        Text("Every hour meets your limits", style = MaterialTheme.typography.labelLarge, color = Lime)
+                        Text(
+                            "Every hour meets your limits",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Lime
+                        )
                     }
                     HorizontalDivider(color = Color.White.copy(alpha = 0.18f))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        WindowMetric("Wind", decimal(window.maxWindMs), "m/s max", Modifier.weight(1f))
-                        WindowMetric("Gust", decimal(window.maxGustMs), "m/s max", Modifier.weight(1f))
-                        WindowMetric("Chance", "${window.maxPrecipitationProbability}%", "hourly max", Modifier.weight(1f))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        WindowMetric(
+                            "Wind",
+                            decimal(window.maxWindMs),
+                            "m/s estimate",
+                            Modifier.weight(1f)
+                        )
+                        WindowMetric(
+                            "Gust",
+                            decimal(window.maxGustMs),
+                            "m/s max",
+                            Modifier.weight(1f)
+                        )
+                        WindowMetric(
+                            "Chance",
+                            "${window.maxPrecipitationProbability}%",
+                            "hourly max",
+                            Modifier.weight(1f)
+                        )
                     }
-                    Text("Chance is the highest hourly precipitation probability, not a whole-session probability.",
-                        style = MaterialTheme.typography.bodySmall, color = Color(0xFFD6E2D9))
+                    Text(
+                        "Highest hourly chance, not the chance for the whole session.",
+                        style = MaterialTheme.typography.bodySmall, color = Color(0xFFD6E2D9)
+                    )
                 }
+
                 else -> {
                     val incomplete = state.analysis?.hasCompleteSession != true
-                    Text(if (incomplete) "Not enough\nhourly data." else "No window fits\nyour limits yet.",
-                        style = MaterialTheme.typography.headlineMedium)
-                    Text(if (incomplete) "Some forecast readings are unavailable. Try refreshing the data."
-                    else "No complete ${state.settings.sessionHours} hour session meets every limit in the next 24 hours.",
-                        style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD6E2D9))
-                    HeroButton(if (incomplete) "Refresh forecast" else "Adjust limits", if (incomplete) onRefresh else onSettings)
+                    Text(
+                        if (incomplete) "Not enough\nhourly data." else "No window fits\nyour limits yet.",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        if (incomplete) "Some forecast readings are unavailable. Try refreshing the data."
+                        else "No complete ${state.settings.sessionHours}-hour session meets every limit in the next 24 hours.",
+                        style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD6E2D9)
+                    )
+                    HeroButton(
+                        if (incomplete) "Refresh forecast" else "Adjust limits",
+                        if (incomplete) onRefresh else onSettings
+                    )
                 }
             }
         }
@@ -220,13 +373,21 @@ private fun WindowCard(state: StillCastUiState, onSettings: () -> Unit, onRefres
 
 @Composable
 private fun HeroButton(label: String, onClick: () -> Unit) {
-    Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Forest)) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Forest)
+    ) {
         Text(label)
     }
 }
 
 @Composable
-private fun WindowMetric(label: String, value: String, unit: String, modifier: Modifier = Modifier) {
+private fun WindowMetric(
+    label: String,
+    value: String,
+    unit: String,
+    modifier: Modifier = Modifier
+) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = Color(0xFFD6E2D9))
         Text(value, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
@@ -238,21 +399,48 @@ private fun WindowMetric(label: String, value: String, unit: String, modifier: M
 private fun HourRow(hour: RecordingHour, settings: RecordingSettings, zone: ZoneId) {
     val matches = WindowPlanner.matches(hour, settings)
     val symbol = if (!hour.complete) "?" else if (matches) "✓" else "–"
-    val date = DateTimeFormatter.ofPattern("EEE HH:mm", Locale.UK).withZone(zone).format(hour.start)
-    val description = "$date, ${if (!hour.complete) "missing data" else if (matches) "within limits" else "above limits"}. " +
-        "Wind ${hour.windMs?.let(::decimal) ?: "unavailable"} metres per second, " +
-        "gust ${hour.gustMs?.let(::decimal) ?: "unavailable"} metres per second, " +
-        "precipitation chance ${hour.precipitationProbability?.toString() ?: "unavailable"} percent."
-    Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = description },
-        verticalAlignment = Alignment.CenterVertically) {
+    val date =
+        DateTimeFormatter.ofPattern("EEE d MMM", Locale.UK).withZone(zone).format(hour.start) +
+                " ${clockTime(hour.start, zone)}"
+    val description =
+        "$date, ${if (!hour.complete) "missing data" else if (matches) "within limits" else "above limits"}. " +
+                "Wind ${hour.windMs?.let(::decimal) ?: "unavailable"} metres per second, " +
+                "gust ${hour.gustMs?.let(::decimal) ?: "unavailable"} metres per second, " +
+                "precipitation chance ${hour.precipitationProbability?.toString() ?: "unavailable"} percent."
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) { contentDescription = description },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Column(Modifier.weight(1.4f)) {
-            Text(DateTimeFormatter.ofPattern("EEE d MMM", Locale.UK).withZone(zone).format(hour.start),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("$symbol  ${clockTime(hour.start, zone)}", style = MaterialTheme.typography.bodyMedium,
-                color = if (matches) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                DateTimeFormatter.ofPattern("EEE d MMM", Locale.UK).withZone(zone)
+                    .format(hour.start),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "$symbol  ${clockTime(hour.start, zone)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (matches) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-        Text(hour.windMs?.let(::decimal) ?: "—", Modifier.weight(1f), textAlign = TextAlign.End, style = MaterialTheme.typography.bodyMedium)
-        Text(hour.gustMs?.let(::decimal) ?: "—", Modifier.weight(1f), textAlign = TextAlign.End, style = MaterialTheme.typography.bodyMedium)
-        Text(hour.precipitationProbability?.let { "$it%" } ?: "—", Modifier.weight(1f), textAlign = TextAlign.End, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            hour.windMs?.let(::decimal) ?: "—",
+            Modifier.weight(1f),
+            textAlign = TextAlign.End,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            hour.gustMs?.let(::decimal) ?: "—",
+            Modifier.weight(1f),
+            textAlign = TextAlign.End,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(hour.precipitationProbability?.let { "$it%" } ?: "—",
+            Modifier.weight(1f),
+            textAlign = TextAlign.End,
+            style = MaterialTheme.typography.bodyMedium)
     }
 }

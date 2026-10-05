@@ -55,7 +55,6 @@ Tests cover time boundaries, limits, missing data, response validation, overlapp
 
 ## Data sources and privacy
 
-- Weather and city search use [Open-Meteo](https://open-meteo.com/). The calculation follows its [forecast documentation](https://open-meteo.com/en/docs); city search uses its [geocoding API](https://open-meteo.com/en/docs/geocoding-api).
-- Location data comes from [GeoNames](https://www.geonames.org/), via Open-Meteo. Data is credited under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). StillCast calculates the recording windows.
-- The app uses the free noncommercial service; see Open-Meteo's [terms and privacy information](https://open-meteo.com/en/terms).
-- Search text and selected city coordinates are sent to Open-Meteo over HTTPS. The app does not use GPS, the microphone, accounts or analytics. Forecasts and preferences stay in memory.
+- Weather: [Open-Meteo](https://open-meteo.com/). Places: [GeoNames](https://www.geonames.org/), via Open-Meteo. Data: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). StillCast calculates the recording windows.
+- API references: [forecast](https://open-meteo.com/en/docs) and [city search](https://open-meteo.com/en/docs/geocoding-api).
+- City searches and coordinates are sent to Open-Meteo. No GPS, microphone or analytics are used; settings and forecasts stay in memory. See [service terms and privacy](https://open-meteo.com/en/terms).

@@ -55,7 +55,7 @@ class UtilityAppTest {
         compose.onNodeWithTag("fieldTab").assertIsSelected()
         compose.onNodeWithTag("windowTime").assertTextEquals("10:00 – 12:00")
         compose.onNodeWithTag("settingsTab").performClick().assertIsSelected()
-        compose.onNodeWithText("Make it your window.").assertIsDisplayed()
+        compose.onNodeWithText("Recording preferences").assertIsDisplayed()
 
         // Dispatch through the host's real back handler without coupling to MainActivity.
         compose.runOnIdle { backDispatcher.onBackPressed() }
@@ -74,7 +74,7 @@ class UtilityAppTest {
         compose.onNodeWithTag("duration-3").performClick().assertIsSelected()
 
         compose.onNodeWithTag("fieldTab").performClick()
-        compose.onNodeWithText("Today · 3 hour session").assertIsDisplayed()
+        compose.onNodeWithText("Today · 3-hour session").assertIsDisplayed()
         compose.onNodeWithTag("windowTime").assertTextEquals("10:00 – 13:00")
         compose.runOnIdle { assertEquals(0, refreshCount) }
     }
@@ -90,7 +90,7 @@ class UtilityAppTest {
 
         compose.onNodeWithTag("fieldTab").performClick()
         val windSummary = "Wind ≤ 4.0 m/s  ·  Gust ≤ 8.0 m/s"
-        val rainSummary = "Precipitation ≤ 30%  ·  2 hour session"
+        val rainSummary = "Precipitation ≤ 30%  ·  2-hour session"
         compose.onNodeWithTag("fieldList").performScrollToNode(hasText(windSummary))
         compose.onNodeWithText(windSummary).assertIsDisplayed()
         compose.onNodeWithTag("fieldList").performScrollToNode(hasText(rainSummary))
@@ -108,7 +108,7 @@ class UtilityAppTest {
 
         compose.runOnIdle { state.value = forecastState(wind = 7.0) }
         compose.onNodeWithText("No window fits\nyour limits yet.").assertIsDisplayed()
-        compose.onNodeWithText("No complete 2 hour session meets every limit in the next 24 hours.")
+        compose.onNodeWithText("No complete 2-hour session meets every limit in the next 24 hours.")
             .assertIsDisplayed()
         compose.onNodeWithText("Adjust limits").performClick()
         compose.onNodeWithTag("settingsTab").assertIsSelected()
@@ -172,6 +172,31 @@ class UtilityAppTest {
         compose.onNodeWithTag("windowTime").assertDoesNotExist()
         compose.onNodeWithText("Refresh forecast").performClick()
         compose.runOnIdle { assertEquals(1, refreshCount) }
+    }
+
+    @Test
+    fun repeatedDaylightSavingHourShowsDifferentTimeZones() {
+        val start = Instant.parse("2026-11-01T05:00:00Z")
+        val place = Place(5128581, "New York", "New York", "United States", 40.71, -74.01)
+        val settings = RecordingSettings(place = place, sessionHours = 1)
+        val forecast = Forecast(
+            place = place,
+            zone = ZoneId.of("America/New_York"),
+            fetchedAt = start,
+            points = List(26) { index ->
+                ForecastPoint(start.plusSeconds(index * 3_600L), 1.0, 2.0, 10)
+            },
+        )
+        showApp(StillCastUiState(
+            settings = settings,
+            forecast = forecast,
+            analysis = WindowPlanner.analyze(forecast, settings, start),
+            now = start,
+        ))
+
+        compose.onNodeWithTag("windowTime")
+            .assertTextEquals("01:00 EDT – 01:00 EST")
+            .assertIsDisplayed()
     }
 
     private fun showApp(initial: StillCastUiState = forecastState()) {

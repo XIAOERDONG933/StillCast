@@ -27,8 +27,13 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 internal fun decimal(value: Double): String = String.format(Locale.UK, "%.1f", value)
-internal fun clockTime(time: Instant, zone: ZoneId): String =
-    DateTimeFormatter.ofPattern("HH:mm", Locale.UK).withZone(zone).format(time)
+internal fun clockTime(time: Instant, zone: ZoneId): String {
+    val localTime = time.atZone(zone)
+    // During a backward clock change, the same local hour occurs with two offsets.
+    val repeatedHour = zone.rules.getValidOffsets(localTime.toLocalDateTime()).size > 1
+    val pattern = if (repeatedHour) "HH:mm z" else "HH:mm"
+    return DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH).format(localTime)
+}
 
 internal fun dayLabel(time: Instant, now: Instant, zone: ZoneId): String {
     val date = time.atZone(zone).toLocalDate()

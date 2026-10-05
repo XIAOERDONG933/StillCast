@@ -108,7 +108,7 @@ class AppViewModel(
             } catch (error: Exception) {
                 if (generation == searchGeneration) {
                     mutableState.update {
-                        it.copy(search = PlaceSearch(query, completed = true, error = requestMessage(error)))
+                        it.copy(search = PlaceSearch(query, completed = true, error = requestMessage(error, "places")))
                     }
                 }
             }
@@ -178,9 +178,9 @@ class AppViewModel(
             ?.let { WindowPlanner.analyze(it, settings, now) },
     )
 
-    private fun requestMessage(error: Exception): String = when (error) {
+    private fun requestMessage(error: Exception, subject: String = "weather data"): String = when (error) {
         is ForecastDataException -> "The service returned incomplete or unexpected data. Please try again."
-        is IOException -> "Couldn’t load weather data. Check your connection or try again shortly."
+        is IOException -> "Couldn’t load $subject. Check your connection or try again shortly."
         else -> "The service returned incomplete or unexpected data. Please try again."
     }
 }
