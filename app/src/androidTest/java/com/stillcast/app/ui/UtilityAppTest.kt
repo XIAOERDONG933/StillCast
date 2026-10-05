@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
@@ -129,6 +130,18 @@ class UtilityAppTest {
     }
 
     @Test
+    fun incompleteForecastCannotRestartAnActiveRefresh() {
+        showApp(forecastState(wind = null).copy(loading = true))
+        compose.onNodeWithText("Refresh forecast").assertIsNotEnabled().performClick()
+        compose.onNodeWithTag("refresh").assertIsNotEnabled()
+        compose.runOnIdle { assertEquals(0, refreshCount) }
+
+        compose.runOnIdle { state.value = state.value.copy(loading = false) }
+        compose.onNodeWithText("Refresh forecast").assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(1, refreshCount) }
+    }
+
+    @Test
     fun citySearchRequiresAnExplicitResultSelection() {
         val kyoto = Place(1857910, "Kyoto", "Kyoto", "Japan", 35.02107, 135.75385)
         showApp()
@@ -164,12 +177,19 @@ class UtilityAppTest {
         compose.onNodeWithText("This forecast was retrieved over an hour ago. Refresh before making plans.")
             .assertIsDisplayed()
         compose.onNodeWithTag("windowTime").assertTextEquals("11:00 – 13:00")
+        compose.onNodeWithTag("fieldList").performScrollToNode(hasTestTag("hourlyHeading"))
+        compose.onNodeWithTag("hourlyHeading").assertIsDisplayed()
 
         compose.runOnIdle {
             state.value = forecastState(forecast = forecast, at = now.plusSeconds(10_800))
         }
+        compose.onNodeWithTag("fieldList").performScrollToNode(hasText("Time for a\nfresh forecast."))
         compose.onNodeWithText("Time for a\nfresh forecast.").assertIsDisplayed()
         compose.onNodeWithTag("windowTime").assertDoesNotExist()
+        compose.onNodeWithTag("hourlyHeading").assertDoesNotExist()
+        compose.onNodeWithTag("fieldList").performScrollToNode(hasTestTag("forecastRetrieved"))
+        compose.onNodeWithTag("forecastRetrieved").assertIsDisplayed()
+        compose.onNodeWithTag("fieldList").performScrollToNode(hasText("Refresh forecast"))
         compose.onNodeWithText("Refresh forecast").performClick()
         compose.runOnIdle { assertEquals(1, refreshCount) }
     }

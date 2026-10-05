@@ -1,6 +1,7 @@
 package com.stillcast.app.data
 
 import com.google.gson.annotations.SerializedName
+import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -14,7 +15,7 @@ interface ForecastApi {
         @Query("timeformat") timeFormat: String = "unixtime",
         @Query("timezone") timezone: String = "auto",
         @Query("forecast_days") forecastDays: Int = 3,
-    ): ForecastResponse
+    ): Response<ForecastResponse>
 }
 
 interface GeocodingApi {
@@ -24,7 +25,7 @@ interface GeocodingApi {
         @Query("count") count: Int = 5,
         @Query("language") language: String = "en",
         @Query("format") format: String = "json",
-    ): GeocodingResponse
+    ): Response<GeocodingResponse>
 }
 
 // Every wire field is nullable: missing JSON must never silently become a credible zero.

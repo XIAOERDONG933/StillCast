@@ -101,7 +101,9 @@ fun UtilityScreen(
             }
             if (state.error != null) item {
                 Notice(
-                    if (state.forecast != null) "${state.error} Showing the last retrieved forecast." else state.error,
+                    if (state.forecast != null && !state.expired) {
+                        "${state.error} Showing the last retrieved forecast."
+                    } else state.error,
                     if (!state.loading) "Try again" else null, onRefresh,
                 )
             }
@@ -111,7 +113,22 @@ fun UtilityScreen(
                     if (!state.loading) "Refresh" else null, onRefresh
                 )
             }
-            item { WindowCard(state, onSettings, onRefresh) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WindowCard(state, onSettings, onRefresh)
+                    state.forecast?.let { forecast ->
+                        Text(
+                            "Retrieved ${
+                                DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.UK)
+                                    .withZone(forecast.zone).format(forecast.fetchedAt)
+                            } · Times local to selected place",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag("forecastRetrieved")
+                        )
+                    }
+                }
+            }
             item {
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainer,
@@ -144,10 +161,11 @@ fun UtilityScreen(
             }
             val forecast = state.forecast
             val analysis = state.analysis
-            if (forecast != null && analysis != null) {
+            if (forecast != null && analysis != null && !state.expired) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text("The next 24 hours", style = MaterialTheme.typography.headlineMedium)
+                        Text("The next 24 hours", style = MaterialTheme.typography.headlineMedium,
+                            modifier = Modifier.testTag("hourlyHeading"))
                         val zoneLabel = forecast.zone.id.replace('_', ' ')
                         Text(
                             "From the next complete forecast hour · $zoneLabel",
@@ -196,15 +214,6 @@ fun UtilityScreen(
                         "Wind/gust: m/s · Chance: hourly precipitation probability. ${analysis.completeHourCount}/${analysis.hours.size} hours have complete data.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "Retrieved ${
-                            DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.UK)
-                                .withZone(forecast.zone).format(forecast.fetchedAt)
-                        } · Times local to selected place",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
             }
@@ -363,7 +372,8 @@ private fun WindowCard(state: StillCastUiState, onSettings: () -> Unit, onRefres
                     )
                     HeroButton(
                         if (incomplete) "Refresh forecast" else "Adjust limits",
-                        if (incomplete) onRefresh else onSettings
+                        if (incomplete) onRefresh else onSettings,
+                        enabled = !incomplete || !state.loading
                     )
                 }
             }
@@ -372,9 +382,10 @@ private fun WindowCard(state: StillCastUiState, onSettings: () -> Unit, onRefres
 }
 
 @Composable
-private fun HeroButton(label: String, onClick: () -> Unit) {
+private fun HeroButton(label: String, onClick: () -> Unit, enabled: Boolean = true) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Forest)
     ) {
         Text(label)

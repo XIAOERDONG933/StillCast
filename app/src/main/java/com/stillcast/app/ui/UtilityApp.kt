@@ -2,6 +2,7 @@ package com.stillcast.app.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -35,7 +36,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.stillcast.app.domain.Place
 
-/** The assessment's two-screen scaffold; no navigation graph is needed. */
 @Composable
 fun UtilityApp(
     state: StillCastUiState,
@@ -48,8 +48,8 @@ fun UtilityApp(
     onRainLimit: (Int) -> Unit,
     onReset: () -> Unit,
 ) {
-    var settingsSelected by rememberSaveable { mutableStateOf(false) }
-    BackHandler(enabled = settingsSelected) { settingsSelected = false }
+    var selectedTab by rememberSaveable { mutableStateOf("Utility") }
+    BackHandler(enabled = selectedTab == "Settings") { selectedTab = "Utility" }
     Scaffold(
         topBar = {
             Row(
@@ -64,7 +64,7 @@ fun UtilityApp(
                     Text("WEATHER FOR FIELD RECORDING", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (!settingsSelected) {
+                if (selectedTab == "Utility") {
                     IconButton(onClick = onRefresh, enabled = !state.loading, modifier = Modifier.testTag("refresh")) {
                         if (state.loading) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
                         else Icon(Icons.Rounded.Refresh, contentDescription = "Refresh forecast")
@@ -78,27 +78,28 @@ fun UtilityApp(
         bottomBar = {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                 NavigationBarItem(
-                    selected = !settingsSelected,
-                    onClick = { settingsSelected = false },
+                    selected = selectedTab == "Utility",
+                    onClick = { selectedTab = "Utility" },
                     icon = { Icon(Icons.Rounded.GraphicEq, contentDescription = null) },
                     label = { Text("Field") },
                     modifier = Modifier.testTag("fieldTab"),
                 )
                 NavigationBarItem(
-                    selected = settingsSelected,
-                    onClick = { settingsSelected = true },
+                    selected = selectedTab == "Settings",
+                    onClick = { selectedTab = "Settings" },
                     icon = { Icon(Icons.Rounded.Tune, contentDescription = null) },
                     label = { Text("Settings") },
                     modifier = Modifier.testTag("settingsTab"),
                 )
             }
         },
-    ) { padding ->
-        if (settingsSelected) {
-            SettingsScreen(state, onSearch, onPlaceSelected, onSessionHours, onWindLimit,
-                onGustLimit, onRainLimit, onReset, Modifier.padding(padding))
-        } else {
-            UtilityScreen(state, onRefresh, { settingsSelected = true }, Modifier.padding(padding))
+    ) { innerPadding ->
+        Box(Modifier.padding(innerPadding)) {
+            when (selectedTab) {
+                "Utility" -> UtilityScreen(state, onRefresh, { selectedTab = "Settings" })
+                "Settings" -> SettingsScreen(state, onSearch, onPlaceSelected, onSessionHours,
+                    onWindLimit, onGustLimit, onRainLimit, onReset)
+            }
         }
     }
 }

@@ -17,7 +17,7 @@ import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import okhttp3.OkHttpClient
-import retrofit2.HttpException
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -29,8 +29,8 @@ class OpenMeteoRepository(
     private val geocodingApi: GeocodingApi,
     private val clock: Clock = Clock.systemUTC(),
 ) : WeatherRepository {
-    override suspend fun forecast(place: Place): Forecast = readResponse {
-        val response = forecastApi.forecast(place.latitude, place.longitude)
+    override suspend fun forecast(place: Place): Forecast {
+        val response = readResponse { forecastApi.forecast(place.latitude, place.longitude) }
         if (response.error == true) invalid("The weather service could not provide a forecast.")
         val zone = try {
             ZoneId.of(response.timezone ?: invalid("The forecast has no time zone."))
@@ -75,36 +75,34 @@ class OpenMeteoRepository(
                 precipitationProbability = checkedProbability(precipitation[index]),
             )
         }
-        Forecast(place, zone, clock.instant(), points)
+        return Forecast(place, zone, clock.instant(), points)
     }
 
     override suspend fun searchPlaces(query: String): List<Place> {
         val normalized = query.trim()
         if (normalized.length < 2) return emptyList()
-        return readResponse {
-            val response = geocodingApi.search(normalized)
-            if (response.error == true) invalid("The location service could not complete the search.")
-            response.results.orEmpty().map { result ->
-                val item = result ?: invalid("The location service returned an invalid result.")
-                val name = item.name?.trim()?.takeIf(String::isNotBlank)
-                    ?: invalid("A location has no name.")
-                val latitude = item.latitude ?: invalid("A location has no latitude.")
-                val longitude = item.longitude ?: invalid("A location has no longitude.")
-                if (!latitude.isFinite() || latitude !in -90.0..90.0 ||
-                    !longitude.isFinite() || longitude !in -180.0..180.0
-                ) {
-                    invalid("A location has invalid coordinates.")
-                }
-                Place(
-                    id = item.id ?: invalid("A location has no identifier."),
-                    name = name,
-                    region = item.admin1.orEmpty().trim(),
-                    country = item.country.orEmpty().trim(),
-                    latitude = latitude,
-                    longitude = longitude,
-                )
-            }.distinctBy(Place::id)
-        }
+        val response = readResponse { geocodingApi.search(normalized) }
+        if (response.error == true) invalid("The location service could not complete the search.")
+        return response.results.orEmpty().map { result ->
+            val item = result ?: invalid("The location service returned an invalid result.")
+            val name = item.name?.trim()?.takeIf(String::isNotBlank)
+                ?: invalid("A location has no name.")
+            val latitude = item.latitude ?: invalid("A location has no latitude.")
+            val longitude = item.longitude ?: invalid("A location has no longitude.")
+            if (!latitude.isFinite() || latitude !in -90.0..90.0 ||
+                !longitude.isFinite() || longitude !in -180.0..180.0
+            ) {
+                invalid("A location has invalid coordinates.")
+            }
+            Place(
+                id = item.id ?: invalid("A location has no identifier."),
+                name = name,
+                region = item.admin1.orEmpty().trim(),
+                country = item.country.orEmpty().trim(),
+                latitude = latitude,
+                longitude = longitude,
+            )
+        }.distinctBy(Place::id)
     }
 
     private fun checkedWind(value: Double?): Double? {
@@ -120,24 +118,22 @@ class OpenMeteoRepository(
         return value.toInt()
     }
 
-    private suspend fun <T> readResponse(block: suspend () -> T): T = try {
-        block()
+    private suspend fun <T : Any> readResponse(block: suspend () -> Response<T>): T = try {
+        val response = block()
+        if (!response.isSuccessful) {
+            response.errorBody()?.close()
+            throw IOException("The service returned HTTP ${response.code()}.")
+        }
+        response.body() ?: invalid("The service returned an empty response.")
     } catch (exception: CancellationException) {
         // Cancelling a replaced location search or a destroyed ViewModel must cancel the request.
         throw exception
-    } catch (exception: HttpException) {
-        throw IOException("The weather service returned HTTP ${exception.code()}.", exception)
     } catch (exception: JsonParseException) {
         throw ForecastDataException("The weather service returned unreadable data.", exception)
     } catch (exception: MalformedJsonException) {
         throw ForecastDataException("The weather service returned unreadable data.", exception)
     } catch (exception: EOFException) {
         throw ForecastDataException("The weather service returned incomplete data.", exception)
-    } catch (exception: IllegalStateException) {
-        throw ForecastDataException("The weather service returned an unexpected response.", exception)
-    } catch (exception: NullPointerException) {
-        // Retrofit rejects an empty body for a non-null Kotlin suspend return type.
-        throw ForecastDataException("The weather service returned an empty response.", exception)
     }
 
     private fun invalid(message: String): Nothing = throw ForecastDataException(message)

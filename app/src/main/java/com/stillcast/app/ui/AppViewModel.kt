@@ -1,5 +1,6 @@
 package com.stillcast.app.ui
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.stillcast.app.data.ForecastDataException
@@ -67,7 +68,9 @@ class AppViewModel(
         forecastJob?.cancel()
         val generation = ++forecastGeneration
         val place = mutableState.value.settings.place
-        mutableState.update { it.copy(loading = true, error = null, now = clock.instant()) }
+        mutableState.update {
+            it.copy(loading = true, error = null, now = clock.instant()).recalculate()
+        }
         forecastJob = viewModelScope.launch {
             try {
                 val forecast = repository.forecast(place)
@@ -76,13 +79,15 @@ class AppViewModel(
                         it.copy(forecast = forecast, loading = false, error = null, now = clock.instant())
                             .recalculate()
                     }
+                    if (minuteJob?.isActive == true) startClockUpdates()
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
                 if (generation == forecastGeneration) {
+                    val message = requestMessage(error)
                     mutableState.update {
-                        it.copy(loading = false, error = requestMessage(error), now = clock.instant())
+                        it.copy(loading = false, error = message, now = clock.instant())
                             .recalculate()
                     }
                 }
@@ -107,8 +112,9 @@ class AppViewModel(
                 throw cancelled
             } catch (error: Exception) {
                 if (generation == searchGeneration) {
+                    val message = requestMessage(error, "places")
                     mutableState.update {
-                        it.copy(search = PlaceSearch(query, completed = true, error = requestMessage(error, "places")))
+                        it.copy(search = PlaceSearch(query, completed = true, error = message))
                     }
                 }
             }
@@ -149,10 +155,20 @@ class AppViewModel(
         if (!mutableState.value.loading && forecast != null &&
             Duration.between(forecast.fetchedAt, clock.instant()) >= Duration.ofMinutes(15)
         ) refresh()
+        startClockUpdates()
+    }
+
+    private fun startClockUpdates() {
         minuteJob?.cancel()
         minuteJob = viewModelScope.launch {
             while (isActive) {
-                delay(60_000)
+                // At the exact start, the full hour still fits. Recheck just after it starts.
+                val nextHour = mutableState.value.analysis?.hours?.firstOrNull()?.start
+                val waitMillis = nextHour?.let {
+                    Duration.between(clock.instant(), it.plusMillis(1)).toMillis()
+                        .coerceIn(1L, 60_000L)
+                } ?: 60_000L
+                delay(waitMillis)
                 tick()
             }
         }
@@ -181,6 +197,9 @@ class AppViewModel(
     private fun requestMessage(error: Exception, subject: String = "weather data"): String = when (error) {
         is ForecastDataException -> "The service returned incomplete or unexpected data. Please try again."
         is IOException -> "Couldn’t load $subject. Check your connection or try again shortly."
-        else -> "The service returned incomplete or unexpected data. Please try again."
+        else -> {
+            Log.e("StillCast", "Unexpected error loading $subject", error)
+            "Something went wrong while loading $subject. Please try again."
+        }
     }
 }

@@ -2,6 +2,12 @@
 
 StillCast is a small Android app for planning outdoor sound recordings, such as birdsong or water sounds. It finds the earliest complete 1–3 hour session in the next 24 hours that meets the user's wind, gust and precipitation limits.
 
+## Screenshots
+
+| Field — next recording window | Settings — session length and weather limits |
+|---|---|
+| <img src="docs/screenshots/field.png" alt="Field screen showing the next recording window" width="280"> | <img src="docs/screenshots/settings.png" alt="Settings screen showing session length and weather limits" width="280"> |
+
 ## Run in Android Studio
 
 1. Open the `StillCast` folder containing `settings.gradle.kts`.
@@ -11,11 +17,13 @@ StillCast is a small Android app for planning outdoor sound recordings, such as 
 
 The forecast and city search need an internet connection. No account, API key or runtime permission is needed. The Gradle wrapper is included. A Google-hosted Maven Central mirror is configured because the standard endpoint was unavailable on the development network.
 
+In Android Studio's Preview pane, open `UtilityAppPreview` or `SettingsScreenPreview` to inspect the screens offline using fixed example data.
+
 ## Using the app
 
 - **Field** shows the next matching session, local start/end times, wind estimate, peak gust and highest hourly precipitation chance. Expand the hourly list to see the readings, or refresh to request new data.
 - **Settings** lets you search for a city, choose a duration and change the three weather limits. Duration and limit changes use the loaded forecast immediately. Selecting another city downloads its forecast.
-- Separate messages explain loading, no matching session, incomplete data and request failures. A failed refresh keeps the previous forecast and its retrieval time. Data older than one hour is marked stale; recommendations are hidden after three hours until refreshed.
+- Separate messages explain loading, no matching session, incomplete data and request failures. A failed refresh keeps the previous forecast and its retrieval time. Data older than one hour is marked stale; recommendations and the hourly list are hidden after three hours until refreshed.
 - Settings survive screen changes, rotation and returning from the background. They reset when the app process restarts.
 
 Townsville is the starting location. Defaults are a 2-hour session, wind ≤ 3 m/s, gust ≤ 6 m/s and hourly precipitation chance ≤ 20%. These are adjustable preferences, not equipment ratings.
@@ -29,6 +37,8 @@ Open-Meteo's gust and precipitation readings describe the hour ending at their t
 The precipitation value is the highest individual hourly probability, not the probability for the whole session. Local shelter, traffic and microphone protection are outside the forecast, so the app cannot predict recording quality.
 
 ## Code structure
+
+StillCast extends the supplied Utility App starter, keeping its single activity and two-screen bottom navigation.
 
 | Component | What it does |
 |---|---|

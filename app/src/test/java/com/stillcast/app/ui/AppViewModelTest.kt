@@ -14,6 +14,7 @@ import java.time.ZoneOffset
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -173,6 +174,116 @@ class AppViewModelTest {
         runCurrent()
         assertEquals(base.plusSeconds(60), model.state.value.now)
         assertEquals(1, repository.forecastRequests.size)
+    }
+
+    @Test
+    fun `a session is removed just after its start without another request`() = runTest {
+        clock.current = base.plusSeconds(3_560)
+        val repository = FakeRepository().apply {
+            onForecast = { sampleForecast(it).copy(fetchedAt = clock.current) }
+        }
+        val model = createModel(repository)
+        runCurrent()
+        model.onResume()
+        try {
+            runCurrent()
+
+            clock.current = base.plusSeconds(3_599)
+            advanceTimeBy(39_000)
+            runCurrent()
+            assertEquals(base.plusSeconds(3_600), model.state.value.analysis!!.next!!.start)
+
+            clock.current = base.plusSeconds(3_600)
+            advanceTimeBy(1_000)
+            runCurrent()
+            assertEquals(base.plusSeconds(3_600), model.state.value.analysis!!.next!!.start)
+
+            clock.current = base.plusSeconds(3_600).plusMillis(1)
+            advanceTimeBy(1)
+            runCurrent()
+            assertEquals(base.plusSeconds(7_200), model.state.value.analysis!!.next!!.start)
+            assertEquals(1, repository.forecastRequests.size)
+        } finally {
+            model.onBackground()
+        }
+    }
+
+    @Test
+    fun `a forecast arriving during the timer wait schedules its approaching boundary`() = runTest {
+        clock.current = base.plusSeconds(3_560)
+        val pending = CompletableDeferred<Forecast>()
+        val repository = FakeRepository().apply { onForecast = { pending.await() } }
+        val model = createModel(repository)
+        runCurrent()
+        model.onResume()
+        try {
+            runCurrent()
+
+            clock.current = base.plusSeconds(3_590)
+            advanceTimeBy(30_000)
+            pending.complete(sampleForecast(Place.TOWNSVILLE).copy(fetchedAt = clock.current))
+            runCurrent()
+            assertEquals(base.plusSeconds(3_600), model.state.value.analysis!!.next!!.start)
+
+            clock.current = base.plusSeconds(3_600).plusMillis(1)
+            advanceTimeBy(10_001)
+            runCurrent()
+            assertEquals(base.plusSeconds(7_200), model.state.value.analysis!!.next!!.start)
+            assertEquals(1, repository.forecastRequests.size)
+        } finally {
+            model.onBackground()
+        }
+    }
+
+    @Test
+    fun `refresh recalculates retained data before a slow response arrives`() = runTest {
+        val original = sampleForecast(Place.TOWNSVILLE)
+        val repository = FakeRepository().apply { onForecast = { original } }
+        val model = createModel(repository)
+        runCurrent()
+        val pending = CompletableDeferred<Forecast>()
+        repository.onForecast = { pending.await() }
+
+        clock.current = base.plusMillis(1)
+        model.refresh()
+        runCurrent()
+        assertTrue(model.state.value.loading)
+        assertSame(original, model.state.value.forecast)
+        assertEquals(base.plusSeconds(3_600), model.state.value.analysis!!.next!!.start)
+
+        pending.complete(original.copy(fetchedAt = clock.current))
+        runCurrent()
+        assertFalse(model.state.value.loading)
+    }
+
+    @Test
+    fun `unexpected failures show a general error and allow recovery`() = runTest {
+        val repository = FakeRepository().apply {
+            onForecast = { throw IllegalStateException("Unexpected forecast failure") }
+            onSearch = { throw IllegalStateException("Unexpected search failure") }
+        }
+        val model = createModel(repository)
+        runCurrent()
+        assertEquals(
+            "Something went wrong while loading weather data. Please try again.",
+            model.state.value.error,
+        )
+        assertFalse(model.state.value.loading)
+
+        model.search("Cairns")
+        advanceTimeBy(350)
+        runCurrent()
+        assertEquals(
+            "Something went wrong while loading places. Please try again.",
+            model.state.value.search.error,
+        )
+        assertFalse(model.state.value.search.loading)
+
+        repository.onForecast = { sampleForecast(it) }
+        model.refresh()
+        runCurrent()
+        assertNotNull(model.state.value.forecast)
+        assertNull(model.state.value.error)
     }
 
     @Test

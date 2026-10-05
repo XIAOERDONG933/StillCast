@@ -4,6 +4,7 @@ import com.stillcast.app.domain.Place
 import java.io.IOException
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
@@ -20,12 +21,15 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class OpenMeteoRepositoryTest {
     private lateinit var server: MockWebServer
     private lateinit var repository: OpenMeteoRepository
+    private lateinit var forecastApi: ForecastApi
+    private lateinit var geocodingApi: GeocodingApi
     private val fetchedAt = Instant.parse("2026-09-28T01:30:00Z")
     private val firstEpoch = Instant.parse("2026-09-28T00:00:00Z").epochSecond
     private val fixedClock = Clock.fixed(fetchedAt, ZoneOffset.UTC)
@@ -44,11 +48,9 @@ class OpenMeteoRepositoryTest {
             )
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-        repository = OpenMeteoRepository(
-            retrofit.create(ForecastApi::class.java),
-            retrofit.create(GeocodingApi::class.java),
-            fixedClock,
-        )
+        forecastApi = retrofit.create(ForecastApi::class.java)
+        geocodingApi = retrofit.create(GeocodingApi::class.java)
+        repository = OpenMeteoRepository(forecastApi, geocodingApi, fixedClock)
     }
 
     @After
@@ -197,9 +199,36 @@ class OpenMeteoRepositoryTest {
     }
 
     @Test
-    fun `empty successful response is a data failure`() {
+    fun `empty or null forecast response is a data failure`() {
         server.enqueue(MockResponse().setResponseCode(204))
         expectInvalidForecast()
+        server.enqueue(json("null"))
+        expectInvalidForecast()
+    }
+
+    @Test
+    fun `empty location response is a data failure rather than an empty search`() {
+        server.enqueue(MockResponse().setResponseCode(204))
+        assertThrows(ForecastDataException::class.java) {
+            runBlocking { repository.searchPlaces("Townsville") }
+        }
+    }
+
+    @Test
+    fun `internal errors after parsing are not reported as invalid service data`() {
+        val problem = IllegalStateException("Clock failed")
+        val brokenClock = object : Clock() {
+            override fun getZone(): ZoneId = ZoneOffset.UTC
+            override fun withZone(zone: ZoneId): Clock = this
+            override fun instant(): Instant = throw problem
+        }
+        val subject = OpenMeteoRepository(forecastApi, geocodingApi, brokenClock)
+        server.enqueue(json(forecastJson()))
+
+        val actual = assertThrows(IllegalStateException::class.java) {
+            runBlocking { subject.forecast(Place.TOWNSVILLE) }
+        }
+        assertSame(problem, actual)
     }
 
     @Test
@@ -259,7 +288,12 @@ class OpenMeteoRepositoryTest {
     fun `coroutine cancellation is not converted into a user facing service error`() {
         val cancellation = CancellationException("Search replaced")
         val cancellingApi = object : GeocodingApi {
-            override suspend fun search(name: String, count: Int, language: String, format: String): GeocodingResponse {
+            override suspend fun search(
+                name: String,
+                count: Int,
+                language: String,
+                format: String,
+            ): Response<GeocodingResponse> {
                 throw cancellation
             }
         }
@@ -272,7 +306,7 @@ class OpenMeteoRepositoryTest {
                 timeFormat: String,
                 timezone: String,
                 forecastDays: Int,
-            ): ForecastResponse = error("Not used")
+            ): Response<ForecastResponse> = error("Not used")
         }
         val cancellingRepository = OpenMeteoRepository(unusedForecastApi, cancellingApi, fixedClock)
         val exception = assertThrows(CancellationException::class.java) {
