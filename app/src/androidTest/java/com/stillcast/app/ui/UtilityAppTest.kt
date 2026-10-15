@@ -5,6 +5,9 @@ import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -113,6 +116,30 @@ class UtilityAppTest {
             .assertIsDisplayed()
         compose.onNodeWithText("Adjust limits").performClick()
         compose.onNodeWithTag("settingsTab").assertIsSelected()
+    }
+
+    @Test
+    fun partialCoverageExplainsMissingHoursAndOffersRefresh() {
+        val full = forecastState(wind = 7.0).forecast!!
+        val partial = full.copy(points = full.points.mapIndexed { index, point ->
+            if (index <= 2) point else point.copy(windMs = null)
+        })
+        showApp(forecastState(forecast = partial))
+        compose.onNodeWithText("No match in\nthe available data.").assertIsDisplayed()
+        compose.onNodeWithText("Only 2 of 24 hours have complete data. No available 2-hour session meets every limit. Refresh to check the missing hours.")
+            .assertIsDisplayed()
+        compose.onNodeWithText("Refresh forecast").performClick()
+        compose.runOnIdle { assertEquals(1, refreshCount) }
+        compose.onNodeWithTag("windowTime").assertDoesNotExist()
+    }
+
+    @Test
+    fun aClockBeforeRetrievalHidesTheRecommendationAndExplainsWhy() {
+        showApp(forecastState(at = now.minusSeconds(60)))
+        compose.onNodeWithText("Your device clock is earlier than this forecast's retrieval time. Refresh before making plans.")
+            .assertIsDisplayed()
+        compose.onNodeWithTag("windowTime").assertDoesNotExist()
+        compose.onNodeWithTag("hourlyHeading").assertDoesNotExist()
     }
 
     @Test
@@ -264,7 +291,8 @@ class UtilityAppTest {
     private fun setSlider(tag: String, value: Float, description: String) {
         compose.onNodeWithTag("settingsList").performScrollToNode(hasTestTag(tag))
         compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
-        compose.onNodeWithTag(tag).assertContentDescriptionEquals(description)
+        compose.onNodeWithTag(tag).assertContentDescriptionEquals(description.substringBefore(", "))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, description.substringAfter(", ")))
     }
 
     private fun forecastState(

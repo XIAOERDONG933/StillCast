@@ -25,7 +25,7 @@ In Android Studio's Preview pane, open `UtilityAppPreview` or `SettingsScreenPre
 
 - **Field** shows the next matching session, local start/end times, wind estimate, peak gust and highest hourly precipitation chance. Expand the hourly list to see the readings, or refresh to request new data.
 - **Settings** lets you search for a city, choose a duration and change the three weather limits. Enter at least two characters; two-character searches match exact place names. Duration and limit changes use the loaded forecast immediately. Selecting another city downloads its forecast.
-- Separate messages explain loading, no matching session, incomplete data and request failures. A failed refresh keeps the previous forecast and its retrieval time. Data older than one hour is marked stale; recommendations and the hourly list are hidden after three hours until refreshed.
+- Separate messages explain loading, no matching session, incomplete data and request failures. A failed refresh keeps the previous forecast and its retrieval time. Data older than one hour is marked stale; recommendations and the hourly list are hidden after three hours until refreshed. Moving the device clock backwards cannot make an expired response fresh again.
 - Settings survive screen changes, rotation and returning from the background. They reset when the app process restarts.
 
 Townsville is the starting location. Defaults are a 2-hour session, wind ≤ 3 m/s, gust ≤ 6 m/s and hourly precipitation chance ≤ 20%. These are adjustable preferences, not equipment ratings.
@@ -67,7 +67,7 @@ Tests cover time boundaries, limits, missing data, response validation, overlapp
 
 [Android checks](https://github.com/XIAOERDONG933/StillCast/actions/workflows/android.yml) runs the JVM tests, Android Lint and debug builds on Ubuntu and Windows for each push to `main` and each pull request. Each run keeps its test reports and debug APKs for 14 days. The UI test APK is compiled in CI; running its tests still needs an emulator or device.
 
-On 15 October 2026, a submission ZIP with the same source files as `a98f9cb` was extracted into a separate folder and opened in Android Studio Quail 4 (2026.1.4) on macOS. With JDK 21 and SDK 36 selected, sync, installation and live weather retrieval worked on an API 35 emulator. A two-character city search returned selectable results, and all three offline previews rendered. The 65 JVM tests and 9 Compose device tests passed. This check used the existing SDK and dependency cache.
+The 15 October 2026 validation passed 67 JVM tests, Android Lint, both debug APK builds and 17 device tests on an API 35 emulator. It includes real activity recreation/background-return tests, narrow and landscape layouts at 200% text size, and a separate TalkBack walkthrough. See [verification notes](docs/verification.md) for the methods, results and limits of these checks.
 
 ## Data sources and privacy
 

@@ -18,11 +18,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val repository = (application as StillCastApplication).container.weatherRepository
+        val container = (application as StillCastApplication).container
         setContent {
             StillCastTheme {
                 val model: AppViewModel = viewModel(factory = viewModelFactory {
-                    initializer { AppViewModel(repository) }
+                    initializer { AppViewModel(container.weatherRepository, container.clock,
+                        container.elapsedRealtimeMillis) }
                 })
                 LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.onResume() }
                 LifecycleEventEffect(Lifecycle.Event.ON_STOP) { model.onBackground() }

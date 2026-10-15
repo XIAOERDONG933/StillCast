@@ -35,6 +35,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +60,7 @@ fun UtilityScreen(
     modifier: Modifier = Modifier,
 ) {
     var showAllHours by rememberSaveable(state.settings.place.id) { mutableStateOf(false) }
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
             modifier = Modifier
@@ -73,32 +76,36 @@ fun UtilityScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        Icons.Rounded.Place,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            state.settings.place.name,
-                            style = MaterialTheme.typography.titleMedium
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Place,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
                         )
-                        Text(
-                            listOf(
-                                state.settings.place.region,
-                                state.settings.place.country
-                            ).filter { it.isNotBlank() }.distinct().joinToString(", "),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                state.settings.place.name,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                listOf(
+                                    state.settings.place.region,
+                                    state.settings.place.country
+                                ).filter { it.isNotBlank() }.distinct().joinToString(", "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (!largeText) TextButton(onClick = onSettings) { Text("Change") }
                     }
-                    TextButton(onClick = onSettings) { Text("Change") }
+                    if (largeText) TextButton(onClick = onSettings) { Text("Change") }
                 }
             }
+
             if (state.error != null) item {
                 Notice(
                     if (state.forecast != null && !state.expired) {
@@ -179,7 +186,7 @@ fun UtilityScreen(
                         )
                     }
                 }
-                item {
+                if (!largeText) item {
                     Row(Modifier.fillMaxWidth()) {
                         Text(
                             "HOUR",
@@ -293,7 +300,9 @@ private fun WindowCard(state: StillCastUiState, onSettings: () -> Unit, onRefres
                         style = MaterialTheme.typography.headlineMedium
                     )
                     Text(
-                        "The saved forecast is over three hours old. Refresh to see a new recommendation.",
+                        if (state.clockBeforeForecast)
+                            "Your device clock is earlier than this forecast's retrieval time. Refresh before making plans."
+                        else "The saved forecast is over three hours old. Refresh to see a new recommendation.",
                         style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD6E2D9)
                     )
                     if (!state.loading) HeroButton("Refresh forecast", onRefresh)
@@ -330,7 +339,13 @@ private fun WindowCard(state: StillCastUiState, onSettings: () -> Unit, onRefres
                         )
                     }
                     HorizontalDivider(color = Color.White.copy(alpha = 0.18f))
-                    Row(
+                    if (LocalDensity.current.fontScale >= 1.5f) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            WindowMetric("Wind", decimal(window.maxWindMs), "m/s estimate")
+                            WindowMetric("Gust", decimal(window.maxGustMs), "m/s max")
+                            WindowMetric("Chance", "${window.maxPrecipitationProbability}%", "hourly max")
+                        }
+                    } else Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -361,19 +376,26 @@ private fun WindowCard(state: StillCastUiState, onSettings: () -> Unit, onRefres
 
                 else -> {
                     val incomplete = state.analysis?.hasCompleteSession != true
+                    val analysis = state.analysis
+                    val partial = analysis != null && analysis.completeHourCount < analysis.hours.size
                     Text(
-                        if (incomplete) "Not enough\nhourly data." else "No window fits\nyour limits yet.",
+                        when {
+                            incomplete -> "Not enough\nhourly data."
+                            partial -> "No match in\nthe available data."
+                            else -> "No window fits\nyour limits yet."
+                        },
                         style = MaterialTheme.typography.headlineMedium
                     )
                     Text(
                         if (incomplete) "Some forecast readings are unavailable. Try refreshing the data."
+                        else if (partial) "Only ${analysis!!.completeHourCount} of ${analysis.hours.size} hours have complete data. No available ${state.settings.sessionHours}-hour session meets every limit. Refresh to check the missing hours."
                         else "No complete ${state.settings.sessionHours}-hour session meets every limit in the next 24 hours.",
                         style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD6E2D9)
                     )
                     HeroButton(
-                        if (incomplete) "Refresh forecast" else "Adjust limits",
-                        if (incomplete) onRefresh else onSettings,
-                        enabled = !incomplete || !state.loading
+                        if (incomplete || partial) "Refresh forecast" else "Adjust limits",
+                        if (incomplete || partial) onRefresh else onSettings,
+                        enabled = !(incomplete || partial) || !state.loading
                     )
                 }
             }
@@ -399,7 +421,7 @@ private fun WindowMetric(
     unit: String,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    Column(modifier.semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = Color(0xFFD6E2D9))
         Text(value, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
         Text(unit, style = MaterialTheme.typography.bodySmall, color = Color(0xFFD6E2D9))
@@ -418,10 +440,20 @@ private fun HourRow(hour: RecordingHour, settings: RecordingSettings, zone: Zone
                 "Wind ${hour.windMs?.let(::decimal) ?: "unavailable"} metres per second, " +
                 "gust ${hour.gustMs?.let(::decimal) ?: "unavailable"} metres per second, " +
                 "precipitation chance ${hour.precipitationProbability?.toString() ?: "unavailable"} percent."
+    if (LocalDensity.current.fontScale >= 1.5f) {
+        Column(Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = description }) {
+            Text("$symbol  $date", style = MaterialTheme.typography.bodyMedium)
+            Text("Wind ${hour.windMs?.let(::decimal) ?: "—"} m/s · Gust ${hour.gustMs?.let(::decimal) ?: "—"} m/s",
+                style = MaterialTheme.typography.bodyMedium)
+            Text("Precipitation ${hour.precipitationProbability?.let { "$it%" } ?: "unavailable"}",
+                style = MaterialTheme.typography.bodyMedium)
+        }
+        return
+    }
     Row(
         Modifier
             .fillMaxWidth()
-            .semantics(mergeDescendants = true) { contentDescription = description },
+            .clearAndSetSemantics { contentDescription = description },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1.4f)) {

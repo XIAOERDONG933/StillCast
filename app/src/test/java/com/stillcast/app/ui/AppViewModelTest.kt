@@ -37,6 +37,7 @@ import org.junit.Test
 class AppViewModelTest {
     private val base = Instant.parse("2026-09-28T00:00:00Z")
     private val clock = MutableClock(base)
+    private var elapsedMillis = 0L
     private val stores = mutableListOf<ViewModelStore>()
     private val secondPlace = Place(42, "Cairns", "Queensland", "Australia", -16.92, 145.77)
 
@@ -350,8 +351,51 @@ class AppViewModelTest {
         model.onBackground()
     }
 
+    @Test
+    fun `elapsed time expires a forecast even when the wall clock moves backwards`() = runTest {
+        val repository = FakeRepository().apply { onForecast = { sampleForecast(it) } }
+        val model = createModel(repository)
+        runCurrent()
+
+        // The app was backgrounded for three hours, while the user reset the wall clock.
+        elapsedMillis = Duration.ofHours(3).toMillis()
+        clock.current = base.minusSeconds(60)
+        repository.onForecast = { throw IOException("Offline") }
+        model.onResume()
+        runCurrent()
+        assertTrue(model.state.value.expired)
+        assertTrue(model.state.value.clockBeforeForecast)
+        assertEquals(2, repository.forecastRequests.size)
+
+        clock.current = base.plusSeconds(60)
+        model.setSessionHours(1)
+        assertFalse(model.state.value.clockBeforeForecast)
+        assertTrue(model.state.value.expired)
+        model.onBackground()
+    }
+
+    @Test
+    fun `an observed expired forecast stays expired after a forward then backward clock correction`() = runTest {
+        val repository = FakeRepository().apply { onForecast = { sampleForecast(it) } }
+        val model = createModel(repository)
+        runCurrent()
+        clock.current = base.plus(Duration.ofHours(4))
+        model.setSessionHours(1)
+        assertTrue(model.state.value.expired)
+
+        clock.current = base.plusSeconds(60)
+        model.setSessionHours(2)
+        assertTrue(model.state.value.expired)
+
+        repository.onForecast = { sampleForecast(it).copy(fetchedAt = clock.current) }
+        model.refresh()
+        runCurrent()
+        assertFalse(model.state.value.stale)
+        assertFalse(model.state.value.expired)
+    }
+
     private fun createModel(repository: WeatherRepository): AppViewModel =
-        AppViewModel(repository, clock).also { model ->
+        AppViewModel(repository, clock) { elapsedMillis }.also { model ->
             stores += ViewModelStore().apply { put("subject", model) }
         }
 

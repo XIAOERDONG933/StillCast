@@ -1,6 +1,7 @@
 package com.stillcast.app.ui
 
 import android.util.Log
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.stillcast.app.data.ForecastDataException
@@ -39,20 +40,22 @@ data class StillCastUiState(
     val error: String? = null,
     val search: PlaceSearch = PlaceSearch(),
     val now: Instant = Instant.now(),
+    val elapsedForecastAge: Duration = Duration.ZERO,
 ) {
-    val stale: Boolean get() = forecast?.let {
-        Duration.between(it.fetchedAt, now) >= Duration.ofHours(1)
-    } ?: false
+    val forecastAge: Duration get() = forecast?.let {
+        maxOf(elapsedForecastAge, Duration.between(it.fetchedAt, now))
+    } ?: Duration.ZERO
+    val clockBeforeForecast: Boolean get() = forecast?.let { now < it.fetchedAt } ?: false
+    val stale: Boolean get() = clockBeforeForecast || forecastAge >= Duration.ofHours(1)
 
     // Recommendations expire even if a disconnected device still has old forecast values.
-    val expired: Boolean get() = forecast?.let {
-        Duration.between(it.fetchedAt, now) >= Duration.ofHours(3)
-    } ?: false
+    val expired: Boolean get() = clockBeforeForecast || forecastAge >= Duration.ofHours(3)
 }
 
 class AppViewModel(
     private val repository: WeatherRepository,
     private val clock: Clock = Clock.systemUTC(),
+    private val elapsedRealtimeMillis: () -> Long = SystemClock::elapsedRealtime,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(StillCastUiState(now = clock.instant()))
     val state = mutableState.asStateFlow()
@@ -61,6 +64,8 @@ class AppViewModel(
     private var minuteJob: Job? = null
     private var forecastGeneration = 0
     private var searchGeneration = 0
+    private var receivedAtElapsed = 0L
+    private var ageAtReceipt = Duration.ZERO
 
     init { refresh() }
 
@@ -75,8 +80,11 @@ class AppViewModel(
             try {
                 val forecast = repository.forecast(place)
                 if (generation == forecastGeneration && mutableState.value.settings.place == place) {
+                    receivedAtElapsed = elapsedRealtimeMillis()
+                    ageAtReceipt = maxOf(Duration.ZERO, Duration.between(forecast.fetchedAt, clock.instant()))
                     mutableState.update {
-                        it.copy(forecast = forecast, loading = false, error = null, now = clock.instant())
+                        it.copy(forecast = forecast, loading = false, error = null, now = clock.instant(),
+                            elapsedForecastAge = Duration.ZERO)
                             .recalculate()
                     }
                     if (minuteJob?.isActive == true) startClockUpdates()
@@ -131,6 +139,7 @@ class AppViewModel(
                 search = PlaceSearch(),
                 forecast = if (changed) null else it.forecast,
                 analysis = if (changed) null else it.analysis,
+                elapsedForecastAge = if (changed) Duration.ZERO else it.elapsedForecastAge,
                 error = null,
             )
         }
@@ -153,7 +162,7 @@ class AppViewModel(
         tick()
         val forecast = mutableState.value.forecast
         if (!mutableState.value.loading && forecast != null &&
-            Duration.between(forecast.fetchedAt, clock.instant()) >= Duration.ofMinutes(15)
+            (mutableState.value.clockBeforeForecast || mutableState.value.forecastAge >= Duration.ofMinutes(15))
         ) refresh()
         startClockUpdates()
     }
@@ -190,6 +199,12 @@ class AppViewModel(
     }
 
     private fun StillCastUiState.recalculate(): StillCastUiState = copy(
+        // elapsedRealtime includes sleep and cannot be rolled back with the device clock.
+        // Keep the greatest observed age too, so a forward-then-back correction cannot revive data.
+        elapsedForecastAge = if (forecast == null) Duration.ZERO else maxOf(
+            forecastAge,
+            ageAtReceipt.plusMillis((elapsedRealtimeMillis() - receivedAtElapsed).coerceAtLeast(0)),
+        ),
         analysis = forecast?.takeIf { it.place == settings.place }
             ?.let { WindowPlanner.analyze(it, settings, now) },
     )

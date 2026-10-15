@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.stillcast.app.domain.Place
@@ -303,6 +304,9 @@ private fun LimitSlider(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(tag)
-                .semantics { contentDescription = "$title limit, $display" })
+                .semantics {
+                    contentDescription = "$title limit"
+                    stateDescription = display
+                })
     }
 }
