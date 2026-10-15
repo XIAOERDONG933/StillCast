@@ -67,7 +67,7 @@ Tests cover time boundaries, limits, missing data, response validation, overlapp
 
 [Android checks](https://github.com/XIAOERDONG933/StillCast/actions/workflows/android.yml) runs the JVM tests, Android Lint and debug builds on Ubuntu and Windows for each push to `main` and each pull request. Each run keeps its test reports and debug APKs for 14 days. The UI test APK is compiled in CI; running its tests still needs an emulator or device.
 
-On 15 October 2026, the submission ZIP at `eb897f4` was extracted into a separate folder and opened in Android Studio Quail 4 (2026.1.4) on macOS. With JDK 21 and SDK 36 selected, sync, installation and live weather retrieval worked on an API 35 emulator. A two-character city search returned selectable results, and all three offline previews rendered. The 65 JVM tests and 9 Compose device tests passed. This check used the existing SDK and dependency cache.
+On 15 October 2026, a submission ZIP with the same source files as `a98f9cb` was extracted into a separate folder and opened in Android Studio Quail 4 (2026.1.4) on macOS. With JDK 21 and SDK 36 selected, sync, installation and live weather retrieval worked on an API 35 emulator. A two-character city search returned selectable results, and all three offline previews rendered. The 65 JVM tests and 9 Compose device tests passed. This check used the existing SDK and dependency cache.
 
 ## Data sources and privacy
 
