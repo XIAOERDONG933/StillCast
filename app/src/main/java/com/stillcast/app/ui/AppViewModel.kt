@@ -99,8 +99,8 @@ class AppViewModel(
         searchJob?.cancel()
         val generation = ++searchGeneration
         val trimmed = query.trim()
-        mutableState.update { it.copy(search = PlaceSearch(query = query, loading = trimmed.length >= 3)) }
-        if (trimmed.length < 3) return
+        mutableState.update { it.copy(search = PlaceSearch(query = query, loading = trimmed.length >= 2)) }
+        if (trimmed.length < 2) return
         searchJob = viewModelScope.launch {
             delay(350)
             try {

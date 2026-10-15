@@ -124,7 +124,7 @@ fun SettingsScreen(
                                 }
                             }
                         } else null,
-                        supportingText = { Text("Enter at least 3 characters. Choose the correct region.") },
+                        supportingText = { Text("Enter at least 2 characters. Choose the correct region.") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         shape = RoundedCornerShape(14.dp),

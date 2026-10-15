@@ -22,7 +22,7 @@ In Android Studio's Preview pane, open `UtilityAppPreview` or `SettingsScreenPre
 ## Using the app
 
 - **Field** shows the next matching session, local start/end times, wind estimate, peak gust and highest hourly precipitation chance. Expand the hourly list to see the readings, or refresh to request new data.
-- **Settings** lets you search for a city, choose a duration and change the three weather limits. Duration and limit changes use the loaded forecast immediately. Selecting another city downloads its forecast.
+- **Settings** lets you search for a city, choose a duration and change the three weather limits. Enter at least two characters; two-character searches match exact place names. Duration and limit changes use the loaded forecast immediately. Selecting another city downloads its forecast.
 - Separate messages explain loading, no matching session, incomplete data and request failures. A failed refresh keeps the previous forecast and its retrieval time. Data older than one hour is marked stale; recommendations and the hourly list are hidden after three hours until refreshed.
 - Settings survive screen changes, rotation and returning from the background. They reset when the app process restarts.
 

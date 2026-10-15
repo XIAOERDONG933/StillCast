@@ -120,6 +120,49 @@ class AppViewModelTest {
     }
 
     @Test
+    fun `two character place names are searched after the debounce`() = runTest {
+        val beijing = Place(1816670, "Beijing", "", "China", 39.91, 116.40)
+        val repository = FakeRepository().apply {
+            onForecast = { sampleForecast(it) }
+            onSearch = { listOf(beijing) }
+        }
+        val model = createModel(repository)
+        runCurrent()
+
+        model.search(" 北京 ")
+        assertTrue(model.state.value.search.loading)
+        advanceTimeBy(349)
+        runCurrent()
+        assertTrue(repository.searchRequests.isEmpty())
+
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals(listOf("北京"), repository.searchRequests)
+        assertEquals(listOf(beijing), model.state.value.search.results)
+        assertTrue(model.state.value.search.completed)
+        assertFalse(model.state.value.search.loading)
+    }
+
+    @Test
+    fun `shortening a pending search to one character cancels the request`() = runTest {
+        val repository = FakeRepository().apply { onForecast = { sampleForecast(it) } }
+        val model = createModel(repository)
+        runCurrent()
+
+        model.search("北京")
+        advanceTimeBy(200)
+        model.search("北")
+        advanceTimeBy(350)
+        runCurrent()
+
+        assertTrue(repository.searchRequests.isEmpty())
+        assertEquals("北", model.state.value.search.query)
+        assertFalse(model.state.value.search.loading)
+        assertFalse(model.state.value.search.completed)
+        assertTrue(model.state.value.search.results.isEmpty())
+    }
+
+    @Test
     fun `search debounces typing and ignores a cancelled requests late result`() = runTest {
         val pending = mutableMapOf<String, Continuation<List<Place>>>()
         val repository = FakeRepository().apply {
