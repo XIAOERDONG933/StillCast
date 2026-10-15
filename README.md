@@ -15,6 +15,8 @@ StillCast is a small Android app for planning outdoor sound recordings, such as 
 3. Install **Android SDK Platform 36** if prompted and let Gradle Sync finish.
 4. Choose the `app` configuration and an **Android 8.0 / API 26** or newer emulator or device, then click **Run**.
 
+If Studio reports that Gradle 8.13 is incompatible with its default JDK 25, choose **Use JVM 21**. If JDK 21 is not listed, use **Download JDK** in the Gradle JDK selector, then sync again.
+
 The forecast and city search need an internet connection. No account, API key or runtime permission is needed. The Gradle wrapper is included. A Google-hosted Maven Central mirror is configured because the standard endpoint was unavailable on the development network.
 
 In Android Studio's Preview pane, open `UtilityAppPreview` or `SettingsScreenPreview` to inspect the screens offline using fixed example data.
@@ -62,6 +64,10 @@ sh ./gradlew connectedDebugAndroidTest
 The second command needs a running emulator or device. On Windows, use `gradlew.bat` instead of `sh ./gradlew`. The `sh` form works when ZIP extraction does not preserve the wrapper's executable bit.
 
 Tests cover time boundaries, limits, missing data, response validation, overlapping requests, settings and screen interactions.
+
+[Android checks](https://github.com/XIAOERDONG933/StillCast/actions/workflows/android.yml) runs the JVM tests, Android Lint and debug builds on Ubuntu and Windows for each push to `main` and each pull request. Each run keeps its test reports and debug APKs for 14 days. The UI test APK is compiled in CI; running its tests still needs an emulator or device.
+
+On 15 October 2026, the submission ZIP at `eb897f4` was extracted into a separate folder and opened in Android Studio Quail 4 (2026.1.4) on macOS. With JDK 21 and SDK 36 selected, sync, installation and live weather retrieval worked on an API 35 emulator. A two-character city search returned selectable results, and all three offline previews rendered. The 65 JVM tests and 9 Compose device tests passed. This check used the existing SDK and dependency cache.
 
 ## Data sources and privacy
 
